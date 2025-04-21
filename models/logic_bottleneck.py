@@ -19,14 +19,8 @@ class LogicBottleneck(nn.Module):
     def forward(self, patches: torch.Tensor) -> torch.Tensor:
         """
         patches: Tensor[B,9] with 0/1 entries
-        returns: Tensor[B] in [0,1] representing next state probability
+        returns: raw logits for next state before sigmoid
         """
-        # Linear combination of neighbors
         s = patches.float().matmul(self.w)
-        # survival if current cell alive
-        surv = torch.sigmoid(self.alpha * (s - self.b_surv))
-        # birth if current cell dead
-        birth = torch.sigmoid(self.alpha * (s - self.b_birth))
-        # combine; clamp to [0,1]
-        out = torch.clamp(surv + birth, 0.0, 1.0)
-        return out
+        # raw logits: difference from survival threshold
+        return self.alpha * (s - self.b_surv)

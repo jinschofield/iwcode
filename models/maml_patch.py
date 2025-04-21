@@ -20,9 +20,9 @@ class MAMLPatch(torch.nn.Module):
         with higher.innerloop_ctx(self.net, inner_opt) as (fnet, diffopt):
             for _ in range(self.adapt_steps):
                 preds_sup = fnet(support_x)
-                loss_sup = F.mse_loss(preds_sup.view(-1), support_y.float())
+                loss_sup = F.binary_cross_entropy_with_logits(preds_sup.view(-1), support_y.float())
                 diffopt.step(loss_sup)
             # Query loss after adaptation
             preds_q = fnet(query_x)
-            loss_q = F.mse_loss(preds_q.view(-1), query_y.float())
+            loss_q = F.binary_cross_entropy_with_logits(preds_q.view(-1), query_y.float())
         return loss_q
