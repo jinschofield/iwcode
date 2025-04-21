@@ -21,6 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--out', type=str, default='checkpoints')
+    parser.add_argument('--meta-batch', type=int, default=4, help='num tasks per meta-update')
     args = parser.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
@@ -34,6 +35,7 @@ if __name__ == '__main__':
     # Model and optimizer
     model = MAMLPatch().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer.zero_grad()
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -48,12 +50,14 @@ if __name__ == '__main__':
             support_y = labels[support_idx].to(device)
             query_x   = patches[query_idx].to(device)
             query_y   = labels[query_idx].to(device)
-            # compute meta-loss
-            loss = model(support_x, support_y, query_x, query_y)
-            optimizer.zero_grad()
+            # compute meta-loss and accumulate gradients
+            loss = model(support_x, support_y, query_x, query_y) / args.meta_batch
             loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
+            total_loss += loss.item() * args.meta_batch
+            # step and zero_grad every meta-batch
+            if (rule_idx + 1) % args.meta_batch == 0 or (rule_idx + 1) == num_rules:
+                optimizer.step()
+                optimizer.zero_grad()
         avg_loss = total_loss / num_rules
         print(f"Epoch {epoch}/{args.epochs} - Meta Loss: {avg_loss:.4f}")
         # save checkpoint
